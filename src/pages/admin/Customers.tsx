@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FloatingInput } from '../../components/FloatingInput';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import { useStore } from '../../context/StoreContext';
+import { useAdminStore } from '../../context/AdminContext';
 import { UserProfile as UserType } from '../../types';
 import { smsService } from '../../services/smsService';
 
@@ -30,7 +31,8 @@ const itemVariants = {
 };
 
 export default function Customers() {
-  const { customers, orders, formatPrice, addCustomer, deleteCustomer, updateCustomerBalance, updateCustomer, blockCustomer, showToast, settings, setNotifications, logActivity, sendMarketingNotification } = useStore();
+  const { orders, formatPrice, showToast, settings, setNotifications, sendMarketingNotification } = useStore();
+  const { customers, logActivity, addCustomer, deleteCustomer, updateCustomerBalance, updateCustomer, blockCustomer } = useAdminStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('الكل');
   const [sortBy, setSortBy] = useState<'name' | 'orders' | 'spent'>('name');
@@ -141,7 +143,7 @@ export default function Customers() {
         target: 'specific_user',
         targetUserId: selectedCustomer.uid || selectedCustomer.phone,
         type: notificationData.type === 'sms' ? 'sms' : 'push'
-      });
+      }, customers);
       // sendMarketingNotification takes care of showing the success toast and logging activity
     } catch (err) {
       showToast('فشل إرسال الإشعار', 'error');

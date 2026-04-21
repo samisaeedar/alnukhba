@@ -23,6 +23,7 @@ import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { toast } from 'sonner';
 import { FloatingInput } from '../../components/FloatingInput';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import { useAdminStore } from '../../context/AdminContext';
 
 const QUICK_REPLIES = [
   { id: 'welcome', label: 'رسالة ترحيب', text: 'مرحباً بك، كيف يمكننا مساعدتك اليوم؟' },
@@ -31,7 +32,8 @@ const QUICK_REPLIES = [
 ];
 
 const Messages = () => {
-  const { supportTickets, updateTicketStatus, deleteTicket } = useStore();
+  const { supportTickets } = useAdminStore();
+  const { updateTicketStatus, deleteTicket } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'الكل' | 'غير مقروءة'>('الكل');
   const [selectedMessage, setSelectedMessage] = useState<any>(null);

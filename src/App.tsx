@@ -4,6 +4,7 @@ import { MotionConfig, motion } from 'motion/react';
 import { Toaster } from 'sonner';
 import Layout from './components/Layout';
 import { StoreProvider, useStore } from './context/StoreContext';
+import { AdminProvider } from './context/AdminContext';
 
 // Eager load critical pages for instant navigation
 import Home from './pages/Home';
@@ -187,7 +188,11 @@ const MainRoutes = () => {
       } />
 
       {/* Admin Routes */}
-      <Route path="/admin" element={<AdminLayout />}>
+      <Route path="/admin" element={
+        <AdminProvider>
+          <AdminLayout />
+        </AdminProvider>
+      }>
         <Route index element={<AdminDashboard />} />
         <Route path="products" element={<AdminProducts />} />
         <Route path="categories" element={<AdminCategories />} />

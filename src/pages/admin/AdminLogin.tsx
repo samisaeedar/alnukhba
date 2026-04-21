@@ -5,6 +5,7 @@ import { Zap, Lock, ShieldCheck, Eye, EyeOff, Check, ArrowLeft, Loader2 } from '
 import { FloatingInput } from '../../components/FloatingInput';
 import { Toaster, toast } from 'sonner';
 import { useStore } from '../../context/StoreContext';
+import { useAdminStore } from '../../context/AdminContext';
 import { 
   auth, db, doc, getDoc, loginWithEmail, signupWithEmail,
   query, collection, where, getDocs
@@ -13,7 +14,7 @@ import { getAdminDummyEmail } from '../../lib/adminAuth';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const { adminUsers, logActivity } = useStore();
+  const { adminUsers, logActivity } = useAdminStore();
   const [phone, setPhone] = useState('');
   const [countryCode, setCountryCode] = useState('+967');
   const [password, setPassword] = useState('');

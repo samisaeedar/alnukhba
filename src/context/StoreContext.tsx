@@ -50,14 +50,8 @@ interface StoreContextType {
   updateUser: (user: UserProfile) => void;
   deleteAccount: () => Promise<void>;
   logout: () => void;
-  customers: UserProfile[];
-  addCustomer: (customer: UserProfile) => void;
-  deleteCustomer: (phone: string) => void;
-  updateCustomerBalance: (phone: string, amount: number, description: string) => void;
-  addCustomerNote: (phone: string, note: string) => void;
   updateStock: (productId: string, newStock: number, reason?: string) => void;
   bulkUpdateStock: (updates: { productId: string, newStock: number }[], reason?: string) => void;
-  inventoryLogs: InventoryLog[];
   discount: { code: string | null; amount: number; type: 'percentage' | 'fixed'; pointsUsed?: number };
   applyDiscountCode: (code: string) => boolean;
   removeDiscount: () => void;
@@ -81,13 +75,7 @@ interface StoreContextType {
   updateBanner: (id: string, banner: Partial<Banner>) => void;
   deleteBanner: (id: string) => void;
   marketingNotifications: MarketingNotification[];
-  sendMarketingNotification: (notification: Omit<MarketingNotification, 'id' | 'date' | 'sentCount' | 'openedCount' | 'clickedCount' | 'status'>) => void;
-  adminUsers: AdminUser[];
-  addAdminUser: (admin: Omit<AdminUser, 'id'>) => void;
-  updateAdminUser: (id: string, admin: Partial<AdminUser>, logDetails?: string) => void;
-  deleteAdminUser: (id: string) => void;
-  activityLogs: ActivityLog[];
-  logActivity: (action: string, details: string) => void;
+  sendMarketingNotification: (notification: Omit<MarketingNotification, 'id' | 'date' | 'sentCount' | 'openedCount' | 'clickedCount' | 'status'>, targetCustomers: UserProfile[]) => void;
   supportTickets: SupportTicket[];
   addTicket: (ticket: Omit<SupportTicket, 'id' | 'createdAt' | 'replies' | 'status'>) => void;
   updateTicketStatus: (id: string, status: SupportTicket['status']) => void;
@@ -104,10 +92,7 @@ interface StoreContextType {
   updateShippingZone: (id: string, zone: Partial<ShippingZone>) => void;
   deleteShippingZone: (id: string) => void;
   toggleShippingZoneStatus: (id: string) => void;
-  abandonedCarts: AbandonedCart[];
-  searchTerms: SearchTerm[];
   trackSearch: (term: string, resultsCount: number) => void;
-  visits: Visit[];
   trackVisit: (page: string) => void;
   bulkUpdatePrices: (category: string, percentage: number) => void;
   toast: { show: boolean; message: string };
@@ -140,21 +125,13 @@ interface StoreState {
   language: 'ar' | 'en';
   settings: StoreSettings;
   categories: Category[];
-  inventoryLogs: InventoryLog[];
-  customers: UserProfile[];
   banners: Banner[];
   marketingNotifications: MarketingNotification[];
-  adminUsers: AdminUser[];
-  activityLogs: ActivityLog[];
   discount: { code: string | null; amount: number; type: 'percentage' | 'fixed'; pointsUsed?: number };
   coupons: Coupon[];
-  supportTickets: SupportTicket[];
   blogPosts: BlogPost[];
   staticPages: StaticPage[];
   shippingZones: ShippingZone[];
-  abandonedCarts: AbandonedCart[];
-  searchTerms: SearchTerm[];
-  visits: Visit[];
   systemError: string | null;
 }
 
@@ -175,11 +152,7 @@ interface StoreActions {
   addBanner: (banner: Omit<Banner, 'id'>) => void;
   updateBanner: (id: string, banner: Partial<Banner>) => void;
   deleteBanner: (id: string) => void;
-  sendMarketingNotification: (notification: Omit<MarketingNotification, 'id' | 'date' | 'sentCount' | 'openedCount' | 'clickedCount' | 'status'>) => void;
-  addAdminUser: (admin: Omit<AdminUser, 'id'>) => void;
-  updateAdminUser: (id: string, admin: Partial<AdminUser>, logDetails?: string) => void;
-  deleteAdminUser: (id: string) => void;
-  logActivity: (action: string, details: string) => void;
+  sendMarketingNotification: (notification: Omit<MarketingNotification, 'id' | 'date' | 'sentCount' | 'openedCount' | 'clickedCount' | 'status'>, targetCustomers: UserProfile[]) => void;
   addTicket: (ticket: Omit<SupportTicket, 'id' | 'createdAt' | 'replies' | 'status'>) => void;
   updateTicketStatus: (id: string, status: SupportTicket['status']) => void;
   replyToTicket: (id: string, message: string) => void;
@@ -215,12 +188,6 @@ interface StoreActions {
   isInWishlist: (productId: string) => boolean;
   updateUser: (user: UserProfile) => void;
   logout: () => void;
-  updateCustomer: (phone: string, updates: Partial<UserProfile>) => void;
-  blockCustomer: (phone: string) => void;
-  addCustomer: (customer: UserProfile) => void;
-  deleteCustomer: (phone: string) => void;
-  updateCustomerBalance: (phone: string, amount: number, description: string) => void;
-  addCustomerNote: (phone: string, note: string) => void;
   applyDiscountCode: (code: string) => boolean;
   removeDiscount: () => void;
   addCoupon: (coupon: Omit<Coupon, 'id' | 'usedCount'>) => void;
@@ -506,71 +473,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [user]);
 
-  // Sync Admin-only Data
-  useEffect(() => {
-    if (!user || user.role !== 'admin') {
-      setCustomers([]);
-      setActivityLogs([]);
-      setAdminUsers([]);
-      return;
-    }
-
-    const unsubCustomers = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const customersData = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as unknown as UserProfile[];
-      setCustomers(customersData);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users'));
-
-    const unsubLogs = onSnapshot(collection(db, 'activity_logs'), (snapshot) => {
-      const logsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as unknown as ActivityLog[];
-      setActivityLogs(logsData.sort((a, b) => {
-        const dateA = (a.date as any)?.seconds ? (a.date as any).seconds : new Date(a.date).getTime();
-        const dateB = (b.date as any)?.seconds ? (b.date as any).seconds : new Date(b.date).getTime();
-        return dateB - dateA;
-      }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'activity_logs'));
-
-    const unsubAdmins = onSnapshot(collection(db, 'admin_users'), (snapshot) => {
-      const adminsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as unknown as AdminUser[];
-      setAdminUsers(adminsData);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'admin_users'));
-
-    const unsubTickets = onSnapshot(collection(db, 'support_tickets'), (snapshot) => {
-      const ticketsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as unknown as SupportTicket[];
-      setSupportTickets(ticketsData);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'support_tickets'));
-
-    const unsubVisits = onSnapshot(collection(db, 'visits'), (snapshot) => {
-      const visitsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as unknown as Visit[];
-      setVisits(visitsData);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'visits'));
-
-    const unsubSearchTerms = onSnapshot(collection(db, 'searchTerms'), (snapshot) => {
-      const termsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as unknown as SearchTerm[];
-      setSearchTerms(termsData);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'searchTerms'));
-
-    const unsubAbandonedCarts = onSnapshot(collection(db, 'abandonedCarts'), (snapshot) => {
-      const cartsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as unknown as AbandonedCart[];
-      setAbandonedCarts(cartsData);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'abandonedCarts'));
-
-    const unsubInventoryLogs = onSnapshot(collection(db, 'inventory_logs'), (snapshot) => {
-      const logsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as unknown as InventoryLog[];
-      setInventoryLogs(logsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 1000));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'inventory_logs'));
-
-    return () => {
-      unsubCustomers();
-      unsubLogs();
-      unsubAdmins();
-      unsubTickets();
-      unsubVisits();
-      unsubSearchTerms();
-      unsubAbandonedCarts();
-      unsubInventoryLogs();
-    };
-  }, [user]);
-
   // Sync Public Data
   useEffect(() => {
     const unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot) => {
@@ -802,67 +704,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [visits, setVisits] = useState<Visit[]>(() => {
-    const saved = localStorage.getItem('store_visits');
-    if (saved) return JSON.parse(saved);
-    
-    return [];
-  });
-
-  const getPermissionsByRole = (role: AdminRole): AdminPermission[] => {
-    switch (role) {
-      case 'super_admin':
-        return [
-          'view_dashboard', 'manage_orders', 'manage_products', 'manage_customers',
-          'manage_marketing', 'manage_coupons', 'manage_settings', 'manage_security',
-          'view_logs', 'manage_logistics', 'manage_messages'
-        ];
-      case 'manager':
-        return [
-          'view_dashboard', 'manage_orders', 'manage_products', 'manage_customers',
-          'manage_marketing', 'manage_coupons', 'manage_logistics', 'manage_messages'
-        ];
-      case 'editor':
-        return [
-          'view_dashboard', 'manage_products', 'manage_marketing', 'manage_coupons', 'manage_messages'
-        ];
-      case 'support':
-        return [
-          'view_dashboard', 'manage_orders', 'manage_customers', 'manage_messages'
-        ];
-      default:
-        return ['view_dashboard'];
-    }
-  };
-
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>(() => {
-    const saved = localStorage.getItem('store_admin_users');
-    if (saved) return JSON.parse(saved);
-    return [];
-  });
-
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
-    const saved = localStorage.getItem('store_activity_logs');
-    return saved ? JSON.parse(saved) : [];
-  });
-
   const [categories, setCategories] = useState<Category[]>(() => {
     const saved = localStorage.getItem('store_categories');
     if (saved) return JSON.parse(saved);
     
     return [];
-  });
-
-  const [customers, setCustomers] = useState<UserProfile[]>(() => {
-    const saved = localStorage.getItem('app_users');
-    if (saved) return JSON.parse(saved);
-    
-    return [];
-  });
-
-  const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>(() => {
-    const saved = localStorage.getItem('store_inventory_logs');
-    return saved ? JSON.parse(saved) : [];
   });
 
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -1356,14 +1202,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [showToast, logActivity]);
 
-  const sendMarketingNotification = React.useCallback(async (notification: Omit<MarketingNotification, 'id' | 'date' | 'sentCount' | 'openedCount' | 'clickedCount' | 'status'>) => {
+  const sendMarketingNotification = React.useCallback(async (notification: Omit<MarketingNotification, 'id' | 'date' | 'sentCount' | 'openedCount' | 'clickedCount' | 'status'>, targetCustomers: UserProfile[]) => {
     try {
       const newNotifRef = doc(collection(db, 'marketing_notifications'));
       const newNotification: MarketingNotification = {
         ...notification,
         id: newNotifRef.id,
         date: new Date().toISOString(),
-        sentCount: customers.length,
+        sentCount: targetCustomers.length,
         openedCount: 0,
         clickedCount: 0,
         status: notification.scheduledFor ? 'scheduled' : 'sent'
@@ -1376,7 +1222,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       
       // Send SMS if type is sms
       if (notification.type === 'sms') {
-        const targetCustomers = customers.filter(c => {
+        const filteredCustomers = targetCustomers.filter(c => {
           if (notification.target === 'all') return true;
           if (notification.target === 'specific_user') return c.uid === notification.targetUserId || c.phone === notification.targetUserId;
           if (notification.target === 'vip') return (c.orderCount || 0) > 10;
@@ -1393,7 +1239,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return false;
         });
 
-        const phones = targetCustomers.map(c => c.phone).filter(Boolean) as string[];
+        const phones = filteredCustomers.map(c => c.phone).filter(Boolean) as string[];
         if (phones.length > 0) {
           smsService.sendBulk(phones, notification.message).then(result => {
             if (result.success) {
@@ -1406,92 +1252,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       
       showToast('تم إرسال الإشعار بنجاح');
-      logActivity('إرسال إشعار تسويقي', `تم إرسال إشعار: ${notification.title}`);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'marketing_notifications');
     }
-  }, [customers, showToast, logActivity, setNotifications]);
-
-  const addAdminUser = React.useCallback(async (admin: Omit<AdminUser, 'id'>) => {
-    try {
-      const newAdminRef = doc(collection(db, 'admin_users'));
-      let finalAdmin = { ...admin };
-
-      // Secretly convert phone to dummy email if no email provided but phone exists
-      if (!finalAdmin.email && finalAdmin.phone && finalAdmin.countryCode) {
-        finalAdmin.email = getAdminDummyEmail(finalAdmin.phone, finalAdmin.countryCode);
-      }
-
-      await setDoc(newAdminRef, {
-        ...finalAdmin,
-        id: newAdminRef.id,
-        permissions: finalAdmin.permissions || getPermissionsByRole(finalAdmin.role),
-        createdAt: serverTimestamp()
-      });
-      showToast('تم إضافة المشرف بنجاح');
-      logActivity('إضافة مشرف', `تم إضافة مشرف جديد: ${finalAdmin.name} (${finalAdmin.phone || finalAdmin.email})`);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'admin_users');
-    }
-  }, [showToast, logActivity]);
-
-  const updateAdminUser = React.useCallback(async (id: string, updatedData: Partial<AdminUser>, logDetails?: string) => {
-    try {
-      let finalData = { ...updatedData };
-
-      // Handle phone to email conversion on update if phone changes
-      if (finalData.phone && finalData.countryCode && !finalData.email) {
-        finalData.email = getAdminDummyEmail(finalData.phone, finalData.countryCode);
-      }
-
-      await updateDoc(doc(db, 'admin_users', id), {
-        ...finalData,
-        updatedAt: serverTimestamp()
-      });
-
-      // Synchronize changes to the main `users` collection to prevent loss of admin role or disconnected data
-      try {
-        const dummyEmail = finalData.email || getAdminDummyEmail(finalData.phone || '', finalData.countryCode || '+967');
-        const usersQuery = query(collection(db, 'users'), where('email', '==', dummyEmail));
-        const userDocs = await getDocs(usersQuery);
-        if (userDocs && !userDocs.empty && userDocs.docs && userDocs.docs.length > 0) {
-          const userDocRef = doc(db, 'users', userDocs.docs[0].id);
-          const updatesToUser: any = {};
-          if (finalData.name) {
-            // We store the admin's chosen name into a separate field in the main user record
-            // THIS PREVENTS it from overwriting the client name!
-            updatesToUser.adminName = finalData.name;
-          }
-          if (finalData.role) {
-            updatesToUser.adminRole = finalData.role;
-            updatesToUser.role = 'admin'; // Always ensure they remain an admin
-          }
-          if (finalData.phone) updatesToUser.phone = finalData.phone;
-          
-          if (Object.keys(updatesToUser).length > 0) {
-            await updateDoc(userDocRef, updatesToUser);
-          }
-        }
-      } catch (syncError) {
-        console.error('Failed to sync admin details to users collection:', syncError);
-      }
-
-      showToast('تم تحديث بيانات المشرف');
-      logActivity('تحديث مشرف', logDetails || `تم تحديث بيانات المشرف ID: ${id}`);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `admin_users/${id}`);
-    }
-  }, [showToast, logActivity]);
-
-  const deleteAdminUser = React.useCallback(async (id: string) => {
-    try {
-      await deleteDoc(doc(db, 'admin_users', id));
-      showToast('تم حذف المشرف');
-      logActivity('حذف مشرف', `تم حذف المشرف ID: ${id}`);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `admin_users/${id}`);
-    }
-  }, [showToast, logActivity]);
+  }, [showToast, setNotifications]);
 
   const addToCart = React.useCallback((product: Product, quantity: number = 1, color?: string, size?: string) => {
     const maxQuantity = product.stockCount !== undefined ? product.stockCount : 99;
@@ -1844,11 +1608,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         updatedAt: serverTimestamp()
       });
       showToast('تم تحديث حالة الطلب');
-      logActivity('تحديث حالة طلب', `تم تحديث حالة الطلب ${orderId} إلى: ${status}`);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
     }
-  }, [showToast, logActivity]);
+  }, [showToast]);
 
   const toggleWishlist = React.useCallback((product: Product) => {
     setWishlist(prev => {
@@ -1863,16 +1626,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         newWishlist = [...prev, product];
       }
 
-      // Update customers state
-      if (user) {
-        setCustomers(prevCustomers => prevCustomers.map(c => {
-          if (c.phone === user.phone) {
-            const updated = { ...c, wishlist: newWishlist };
-            setUser(updated);
-            return updated;
-          }
-          return c;
-        }));
+      if (user && auth.currentUser) {
+         updateDoc(doc(db, 'users', auth.currentUser.uid), {
+            wishlist: newWishlist
+         }).catch(error => {
+            console.error("Failed to save wishlist to backend", error);
+         });
+         setUser({ ...user, wishlist: newWishlist });
       }
 
       return newWishlist;
@@ -2335,12 +2095,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } as any);
 
       await batch.commit();
-      logActivity('تحديث مخزون', `تم تحديث مخزون المنتج ${product.name} إلى ${newStock}`);
     } catch (error) {
       console.error('Stock update failed:', error);
       showToast('فشل تحديث المخزون', 'error');
     }
-  }, [products, user, logActivity, showToast]);
+  }, [products, user, showToast]);
 
   const bulkUpdateStock = React.useCallback(async (updates: { productId: string, newStock: number }[], reason: string = 'تحديث جماعي') => {
     try {
@@ -2383,14 +2142,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       if (logCount > 0) {
         await batch.commit();
-        logActivity('تحديث مخزون جماعي', `تم تحديث مخزون ${logCount} منتجات`);
         showToast(`تم تحديث مخزون ${logCount} منتجات`);
       }
     } catch (error) {
       console.error('Bulk stock update failed:', error);
       showToast('فشل تحديث المخزون جماعياً', 'error');
     }
-  }, [products, user, showToast, logActivity]);
+  }, [products, user, showToast]);
 
   const addProduct = React.useCallback(async (product: Omit<Product, 'id'>) => {
     try {
@@ -2401,11 +2159,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         createdAt: serverTimestamp()
       });
       showToast('تم إضافة المنتج بنجاح');
-      logActivity('إضافة منتج', `تم إضافة المنتج الجديد: ${product.name}`);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'products');
     }
-  }, [showToast, logActivity]);
+  }, [showToast]);
 
   const updateProduct = React.useCallback(async (id: string, updatedData: Partial<Product>) => {
     try {
@@ -2414,21 +2171,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         updatedAt: serverTimestamp()
       });
       showToast('تم تحديث المنتج بنجاح');
-      logActivity('تحديث منتج', `تم تحديث بيانات المنتج ID: ${id}`);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `products/${id}`);
     }
-  }, [showToast, logActivity]);
+  }, [showToast]);
 
   const deleteProduct = React.useCallback(async (id: string) => {
     try {
       await deleteDoc(doc(db, 'products', String(id)));
       showToast('تم حذف المنتج بنجاح');
-      logActivity('حذف منتج', `تم حذف المنتج ID: ${id}`);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `products/${id}`);
     }
-  }, [showToast, logActivity]);
+  }, [showToast]);
 
   const addCategory = React.useCallback(async (category: Omit<Category, 'id'>) => {
     try {
@@ -2437,32 +2192,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         id: Date.now().toString()
       };
       await setDoc(doc(db, 'categories', newCategory.id), newCategory);
-      logActivity('إضافة قسم', `تم إضافة قسم جديد: ${category.name}`);
       showToast('تم إضافة الفئة بنجاح', 'success');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'categories');
     }
-  }, [showToast, logActivity]);
+  }, [showToast]);
 
   const updateCategory = React.useCallback(async (id: string, updatedData: Partial<Category>) => {
     try {
       await updateDoc(doc(db, 'categories', id), updatedData);
-      logActivity('تحديث قسم', `تم تحديث بيانات القسم`);
       showToast('تم تحديث الفئة بنجاح', 'success');
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'categories');
     }
-  }, [showToast, logActivity]);
+  }, [showToast]);
 
   const deleteCategory = React.useCallback(async (id: string) => {
     try {
       await deleteDoc(doc(db, 'categories', id));
-      logActivity('حذف قسم', `تم حذف القسم بنجاح`);
       showToast(`تم حذف الفئة بنجاح`);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'categories');
     }
-  }, [showToast, logActivity]);
+  }, [showToast]);
 
   const getRecommendations = React.useCallback(async (currentProduct?: Product) => {
     // If we have a Gemini API key, use AI, otherwise rule-based
@@ -2478,10 +2230,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const stateValue = useMemo(() => ({
     products, cart, wishlist, orders, user,
-    notifications, notificationSettings, subscriptions, recentlyViewed, language, settings, categories, inventoryLogs, customers, discount, coupons,
-    banners, marketingNotifications, adminUsers, activityLogs,
-    supportTickets, blogPosts, staticPages, shippingZones, abandonedCarts, searchTerms, visits, systemError
-  }), [products, cart, wishlist, orders, user, notifications, notificationSettings, subscriptions, recentlyViewed, language, settings, categories, inventoryLogs, customers, discount, coupons, banners, marketingNotifications, adminUsers, activityLogs, supportTickets, blogPosts, staticPages, shippingZones, abandonedCarts, searchTerms, visits, systemError]);
+    notifications, notificationSettings, subscriptions, recentlyViewed, language, settings, categories, discount, coupons,
+    banners, marketingNotifications,
+    supportTickets, blogPosts, staticPages, shippingZones, systemError
+  }), [products, cart, wishlist, orders, user, notifications, notificationSettings, subscriptions, recentlyViewed, language, settings, categories, discount, coupons, banners, marketingNotifications, supportTickets, blogPosts, staticPages, shippingZones, systemError]);
 
   const actionsValue = useMemo(() => ({
     addProduct, updateProduct, deleteProduct,
@@ -2492,17 +2244,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     updateSettings,
     addBanner, updateBanner, deleteBanner,
     sendMarketingNotification,
-    addAdminUser, updateAdminUser, deleteAdminUser,
-    logActivity,
     addTicket, updateTicketStatus, replyToTicket, deleteTicket,
     addBlogPost, updateBlogPost, deleteBlogPost,
     updateStaticPage,
     addShippingZone, updateShippingZone, deleteShippingZone, toggleShippingZoneStatus,
     trackSearch, trackVisit, bulkUpdatePrices,
     updateStock, bulkUpdateStock,
-    updateCustomerBalance, addCustomerNote,
-    updateCustomer, blockCustomer,
-    addCustomer, deleteCustomer,
     addToCart, updateCartQuantity, removeFromCart, clearCart, placeOrder, updateOrderStatus,
     toggleWishlist, isInWishlist, updateUser, deleteAccount, logout,
     applyDiscountCode, removeDiscount,
@@ -2519,17 +2266,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     updateSettings,
     addBanner, updateBanner, deleteBanner,
     sendMarketingNotification,
-    addAdminUser, updateAdminUser, deleteAdminUser,
-    logActivity,
     addTicket, updateTicketStatus, replyToTicket, deleteTicket,
     addBlogPost, updateBlogPost, deleteBlogPost,
     updateStaticPage,
     addShippingZone, updateShippingZone, deleteShippingZone, toggleShippingZoneStatus,
     trackSearch, trackVisit, bulkUpdatePrices,
     updateStock, bulkUpdateStock,
-    updateCustomerBalance, addCustomerNote,
-    updateCustomer, blockCustomer,
-    addCustomer, deleteCustomer,
     addToCart, updateCartQuantity, removeFromCart, clearCart, placeOrder, updateOrderStatus,
     toggleWishlist, isInWishlist, updateUser, deleteAccount, logout,
     applyDiscountCode, removeDiscount,

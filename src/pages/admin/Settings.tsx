@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useAdminStore } from '../../context/AdminContext';
 import { FloatingInput } from '../../components/FloatingInput';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import { 
@@ -46,7 +47,8 @@ const SectionHeader = ({ icon: Icon, title, description, colorClass, bgClass }: 
 );
 
 const Settings = () => {
-  const { settings, updateSettings, logActivity } = useStore();
+  const { settings, updateSettings } = useStore();
+  const { logActivity } = useAdminStore();
   const [formData, setFormData] = useState(settings);
   const [activeSection, setActiveSection] = useState('general');
   const [isSaving, setIsSaving] = useState(false);

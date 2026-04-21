@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useAdminStore } from '../../context/AdminContext';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -76,7 +77,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const Analytics = () => {
-  const { orders, products, formatPrice, logActivity, visits, showToast, abandonedCarts } = useStore();
+  const { orders, products, formatPrice, showToast } = useStore();
+  const { logActivity, visits, abandonedCarts } = useAdminStore();
   const [timeRange, setTimeRange] = useState('30d');
   const [chartView, setChartView] = useState<'visits' | 'sales'>('sales');
   const [isExporting, setIsExporting] = useState(false);

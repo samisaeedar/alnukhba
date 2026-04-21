@@ -4,15 +4,17 @@ import {
   ChevronDown, ChevronUp, Settings2 
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
+import { useAdminStore } from '../../context/AdminContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { AdminUser, AdminRole, AdminPermission } from '../../types';
 import { FloatingInput } from '../../components/FloatingInput';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
 export default function Security() {
+  const { showToast } = useStore();
   const { 
-    adminUsers, addAdminUser, updateAdminUser, deleteAdminUser, showToast
-  } = useStore();
+    adminUsers, addAdminUser, updateAdminUser, deleteAdminUser
+  } = useAdminStore();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);

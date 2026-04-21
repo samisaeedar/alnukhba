@@ -13,6 +13,7 @@ import {
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { toast } from 'sonner';
 import { useStore } from '../../context/StoreContext';
+import { useAdminStore } from '../../context/AdminContext';
 import { Product } from '../../types';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import { FloatingInput } from '../../components/FloatingInput';
@@ -37,8 +38,9 @@ const PREDEFINED_COLORS = [
 export default function Products() {
   const { 
     products, deleteProduct, addProduct, updateProduct, formatPrice,
-    inventoryLogs, bulkUpdateStock, categories 
+    bulkUpdateStock, categories 
   } = useStore();
+  const { inventoryLogs } = useAdminStore();
 
   const [searchParams, setSearchParams] = useSearchParams();
 

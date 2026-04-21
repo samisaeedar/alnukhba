@@ -6,15 +6,16 @@ import { Banner, MarketingNotification } from '../../types';
 import { FloatingInput } from '../../components/FloatingInput';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import { toast } from 'sonner';
+import { useAdminStore } from '../../context/AdminContext';
 
 type TabType = 'banners' | 'notifications';
 
 export default function Marketing() {
   const { 
     banners, addBanner, updateBanner, deleteBanner,
-    marketingNotifications, sendMarketingNotification,
-    customers
+    marketingNotifications, sendMarketingNotification
   } = useStore();
+  const { customers } = useAdminStore();
 
   const [activeTab, setActiveTab] = useState<TabType>('banners');
   
@@ -55,7 +56,7 @@ export default function Marketing() {
 
   const handleSendNotification = (e: React.FormEvent) => {
     e.preventDefault();
-    sendMarketingNotification(notifForm);
+    sendMarketingNotification(notifForm, customers);
     setNotifForm({ title: '', message: '', target: 'all', type: 'push', scheduledFor: '' });
   };
 

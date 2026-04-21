@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { History, Search, Download, Filter, ChevronRight, ChevronLeft, Calendar, User, Activity, Plus, Edit2, Trash2, LogIn } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
+import { useAdminStore } from '../../context/AdminContext';
 import { FloatingInput } from '../../components/FloatingInput';
 
 export default function ActivityLogs() {
-  const { activityLogs, logActivity } = useStore();
+  const { activityLogs, logActivity } = useAdminStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');

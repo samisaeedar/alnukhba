@@ -8,6 +8,7 @@ import {
   Sparkles, ArrowRight, UserPlus, Wallet
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
+import { useAdminStore } from '../../context/AdminContext';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   AreaChart, Area, Cell as ReCell, PieChart, Pie, Cell
@@ -21,11 +22,9 @@ export default function Dashboard() {
     products, 
     orders, 
     formatPrice, 
-    customers, 
-    abandonedCarts,
-    activityLogs,
     categories
   } = useStore();
+  const { customers, abandonedCarts, activityLogs } = useAdminStore();
 
   const [salesTimeRange, setSalesTimeRange] = useState<'weekly' | 'monthly'>('weekly');
   const [topSellingRange, setTopSellingRange] = useState<'today' | 'week' | 'all'>('all');

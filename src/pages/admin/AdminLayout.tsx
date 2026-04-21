@@ -11,12 +11,14 @@ import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
 import Logo from '../../components/Logo';
 import { useStore } from '../../context/StoreContext';
+import { useAdminStore } from '../../context/AdminContext';
 import { FloatingInput } from '../../components/FloatingInput';
 
 export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { orders, products, formatPrice, adminUsers, logActivity, supportTickets } = useStore();
+  const { orders, products, formatPrice } = useStore();
+  const { adminUsers, logActivity, supportTickets } = useAdminStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);

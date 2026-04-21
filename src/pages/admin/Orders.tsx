@@ -12,12 +12,14 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useStore } from '../../context/StoreContext';
+import { useAdminStore } from '../../context/AdminContext';
 import { Order } from '../../types';
 import { notificationService } from '../../services/notificationService';
 import { FloatingInput } from '../../components/FloatingInput';
 
 export default function Orders() {
-  const { orders, updateOrderStatus, formatPrice, showToast, logActivity } = useStore();
+  const { orders, updateOrderStatus, formatPrice, showToast } = useStore();
+  const { logActivity } = useAdminStore();
   
   const renderPrice = (price: number, className?: string) => {
     const formatted = formatPrice(price);
