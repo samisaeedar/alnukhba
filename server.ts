@@ -260,7 +260,16 @@ app.post("/api/reset-password", async (req, res) => {
   }
 
   if (getApps().length === 0) {
-    return res.status(500).json({ success: false, error: "إعدادات Firebase Admin غير متوفرة في السيرفر" });
+    const missing = [];
+    if (!process.env.FIREBASE_PROJECT_ID) missing.push("FIREBASE_PROJECT_ID");
+    if (!process.env.FIREBASE_PRIVATE_KEY) missing.push("FIREBASE_PRIVATE_KEY");
+    if (!process.env.FIREBASE_CLIENT_EMAIL) missing.push("FIREBASE_CLIENT_EMAIL");
+    
+    return res.status(503).json({ 
+      success: false, 
+      error: "إعدادات Firebase Admin غير متوفرة في السيرفر",
+      missing: missing.length > 0 ? missing : ["Unknown initialization failure"]
+    });
   }
 
   try {
@@ -282,7 +291,7 @@ app.post("/api/reset-password", async (req, res) => {
     if (error.code === 'auth/user-not-found') {
       return res.status(404).json({ success: false, error: "هذا الحساب غير موجود" });
     }
-    res.status(500).json({ success: false, error: "فشل تغيير كلمة المرور", details: error.message });
+    res.status(400).json({ success: false, error: "فشل تغيير كلمة المرور", details: error.message });
   }
 });
 
@@ -357,6 +366,17 @@ app.post("/api/verify-otp", (req, res) => {
   
   otpStore.delete(phone);
   res.json({ success: true });
+});
+
+// Global Error Handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("[Global Error Handled]", err);
+  res.status(500).json({ 
+    success: false, 
+    error: "خطأ داخلي في الخادم", 
+    message: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined 
+  });
 });
 
 async function startLocalServer() {
