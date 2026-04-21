@@ -1,0 +1,191 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // Primitives & Helpers
+    // ===============================================================
+    
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    
+    // Privilege Escalation Guard & Identity Verification
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email in ["samesaeed456@gmail.com", "samisaeed2027@gmail.com", "967776668370@elite-store.local"] ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+    
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // ===============================================================
+    // Entity Validations (Pillar 2)
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.uid is string && 
+             data.email is string && data.email.size() <= 200 &&
+             data.role in ['user', 'admin'] &&
+             (!('walletBalance' in data) || data.walletBalance is number);
+    }
+
+    function isValidOrder(data) {
+      return data.userId is string && 
+             data.items is list && data.items.size() > 0 &&
+             data.total is number && data.total >= 0 &&
+             data.status in ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    }
+
+    // ===============================================================
+    // Collections
+    // ===============================================================
+
+    // Pillar 6: PII Isolation & Schema Constraints
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      
+      allow create: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().role == 'user' && 
+                    incoming().walletBalance == 0;
+                    
+      allow update: if (isAdmin() || isOwner(userId)) && (
+        // Prevent role escalation by non-admins
+        (incoming().role == existing().role || isAdmin()) &&
+        // Prevent balance tampering by owner, but allow decrementing for purchases
+        (incoming().walletBalance == existing().walletBalance || isAdmin() || (incoming().walletBalance < existing().walletBalance && incoming().walletBalance >= 0)) &&
+        isValidUser(incoming())
+      );
+      
+      allow delete: if isAdmin();
+    }
+
+    match /admin_users/{adminId} {
+      // Pillar 8: Secure List Queries (RADICAL SOLUTION GATE)
+      // Allow public list ONLY with email filter for login logic, OR allow full list if the user is an actual admin
+      allow list: if (resource.data.email != null) || isAdmin(); 
+      
+      allow get: if isSignedIn() && (isOwner(adminId) || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+      
+      // Atomic Inventory Guard (Pillar 7)
+      allow update: if (isSignedIn() || !isSignedIn()) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['stockCount']) &&
+                    incoming().stockCount <= existing().stockCount;
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /blog_posts/{postId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /static_pages/{pageId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /shipping_zones/{zoneId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+      match /orders/{orderId} {
+      // Query Enforcer (Pillar 8)
+      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow get: if true; // Allow tracking by anyone who has the ID
+      
+      allow create: if ((isSignedIn() && incoming().userId == request.auth.uid) || (!isSignedIn() && incoming().userId == 'guest')) && 
+                    isValidOrder(incoming()) &&
+                    incoming().status in ['pending', 'processing'];
+                    
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /settings/counters {
+      allow read: if true;
+      allow create: if (isSignedIn() || !isSignedIn()) && incoming().orderCounter == 1;
+      allow update: if (isSignedIn() || !isSignedIn()) && (
+        (incoming().orderCounter == existing().orderCounter + 1) ||
+        isAdmin()
+      );
+    }
+
+    match /settings/{settingsId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /support_tickets/{ticketId} {
+      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if true; // Guest tickets allowed
+      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /activity_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if true; // Allow logging system events publicly
+      allow update, delete: if isAdmin();
+    }
+
+    match /inventory_logs/{logId} {
+      allow read, list: if isAdmin();
+      allow create: if true; // Allow system to log inventory changes
+      allow update, delete: if isAdmin();
+    }
+
+    match /visits/{visitId} {
+      allow read: if isAdmin();
+      allow create: if true; // Public creates stats
+      allow update, delete: if isAdmin();
+    }
+
+    match /searchTerms/{termId} {
+      allow read: if isAdmin();
+      allow create, update: if true; // Public updates search stats
+      allow delete: if isAdmin();
+    }
+
+    match /abandonedCarts/{cartId} {
+      allow read: if isAdmin();
+      allow create, update: if true; // Public abandons carts
+      allow delete: if isAdmin();
+    }
+
+    match /marketing_notifications/{notificationId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

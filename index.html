@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://images.unsplash.com">
+    <link rel="dns-prefetch" href="https://images.unsplash.com">
+    <link rel="dns-prefetch" href="https://cdn-icons-png.flaticon.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <meta name="theme-color" content="#C5A059" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    
+    <!-- WhatsApp / Social Media Preview -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="متجر النخبة للإلكترونيات" />
+    <meta property="og:description" content="الرؤية الجديدة للطاقة الشمسية والإلكترونيات الذكية في اليمن" />
+    <meta property="og:image" content="https://images.unsplash.com/photo-1546768292-fb12f6c92568?auto=format&fit=crop&q=80&w=1200" />
+    <meta property="og:url" content="https://alnukhba.store" />
+    
+    <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1546768292-fb12f6c92568?auto=format&fit=crop&q=80&w=512&h=512" />
+    <title>متجر النخبة للإلكترونيات ومنظومات الطاقة الشمسية</title>
+  </head>
+  <body class="bg-white" style="margin: 0;">
+    <div id="root">
+      <style>
+        .app-shell { display: flex; flex-direction: column; min-height: 100vh; font-family: 'Cairo', sans-serif; background: #FFFFFF; }
+        .shell-header { height: 72px; background: #0F172A; border-bottom: 1px solid rgba(197, 160, 89, 0.2); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+        .shell-logo { width: 140px; height: 32px; background: #C5A059; opacity: 0.2; border-radius: 8px; animation: pulse 1.5s infinite ease-in-out; }
+        .shell-icons { display: flex; gap: 16px; }
+        .shell-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.1); border-radius: 50%; animation: pulse 1.5s infinite ease-in-out; }
+        .shell-hero { height: 350px; background: #F1F0EC; margin: 24px; border-radius: 24px; animation: pulse 1.5s infinite ease-in-out; }
+        .shell-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 24px; padding: 0 24px; }
+        .shell-card { height: 320px; background: #FFFFFF; border-radius: 24px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04); animation: pulse 1.5s infinite ease-in-out; }
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 0.8; } 100% { opacity: 0.5; } }
+        @media (max-width: 640px) { .shell-hero { height: 180px; margin: 16px; } .shell-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 0 16px; } .shell-card { height: 240px; } }
+      </style>
+      <div class="app-shell">
+        <div class="shell-header">
+          <div class="shell-icons">
+            <div class="shell-icon"></div>
+            <div class="shell-icon"></div>
+          </div>
+          <div class="shell-logo"></div>
+        </div>
+        <div class="shell-hero"></div>
+        <div class="shell-grid">
+          <div class="shell-card"></div>
+          <div class="shell-card"></div>
+          <div class="shell-card"></div>
+          <div class="shell-card"></div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
